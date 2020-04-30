@@ -62,7 +62,9 @@ namespace ImGuiNET
                     throw new IndexOutOfRangeException();
                 }
 
-                return Unsafe.Read<T>((byte*)Data + sizeof(void*) * index);
+                int sizeOfPtr = Marshal.SizeOf(typeof(IntPtr));
+                return Unsafe.Read<T>((byte*)Data + sizeOfPtr * index);
+
             }
         }
     }
