@@ -1,4 +1,6 @@
-﻿using System.Text;
+﻿using System;
+using System.Runtime.InteropServices;
+using System.Text;
 
 namespace ImGuiNET
 {
@@ -21,9 +23,15 @@ namespace ImGuiNET
                 ptr += 1;
             }
 
-            return Encoding.ASCII.GetString(Data, length);
+            byte[] arr = new byte[length];
+            Marshal.Copy((IntPtr)ptr, arr, 0, length);
+
+            return Encoding.ASCII.GetString(arr);
         }
 
-        public static implicit operator string(NullTerminatedString nts) => nts.ToString();
+        public static implicit operator string(NullTerminatedString nts)
+        {
+            return nts.ToString();
+        }
     }
 }

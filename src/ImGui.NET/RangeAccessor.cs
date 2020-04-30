@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace ImGuiNET
@@ -18,7 +19,7 @@ namespace ImGuiNET
             Count = count;
         }
 
-        public ref T this[int index]
+        public T this[int index]
         {
             get
             {
@@ -27,9 +28,17 @@ namespace ImGuiNET
                     throw new IndexOutOfRangeException();
                 }
 
-                return ref Unsafe.AsRef<T>((byte*)Data + s_sizeOfT * index);
+                IntPtr ptr = (IntPtr) ((byte*) Data + s_sizeOfT * index);
+                return (T)Marshal.PtrToStructure(ptr, typeof(T));
+            }
+
+            set
+            {
+                IntPtr ptr = (IntPtr)((byte*)Data + s_sizeOfT * index);
+                Marshal.StructureToPtr(value, ptr, false);
             }
         }
+
     }
 
     public unsafe struct RangePtrAccessor<T> where T : struct
@@ -62,7 +71,10 @@ namespace ImGuiNET
     {
         public static unsafe string GetStringASCII(this RangeAccessor<byte> stringAccessor)
         {
-            return Encoding.ASCII.GetString((byte*)stringAccessor.Data, stringAccessor.Count);
+            byte[] arr = new byte[stringAccessor.Count];
+            Marshal.Copy((IntPtr)stringAccessor.Data, arr, 0, stringAccessor.Count);
+
+            return Encoding.ASCII.GetString(arr);
         }
     }
 }

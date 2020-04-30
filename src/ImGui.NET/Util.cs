@@ -15,8 +15,10 @@ namespace ImGuiNET
             {
                 characters++;
             }
-
-            return Encoding.UTF8.GetString(ptr, characters);
+            
+            byte[] arr = new byte[characters];
+            Marshal.Copy((IntPtr)ptr, arr, 0, characters);
+            return Encoding.UTF8.GetString(arr);
         }
 
         internal static bool AreStringsEqual(byte* a, int aLength, byte* b)
@@ -31,8 +33,16 @@ namespace ImGuiNET
             return true;
         }
 
-        internal static byte* Allocate(int byteCount) => (byte*)Marshal.AllocHGlobal(byteCount);
-        internal static void Free(byte* ptr) => Marshal.FreeHGlobal((IntPtr)ptr);
+        internal static byte* Allocate(int byteCount)
+        {
+            return (byte*) Marshal.AllocHGlobal(byteCount);
+        }
+
+        internal static void Free(byte* ptr)
+        {
+            Marshal.FreeHGlobal((IntPtr) ptr);
+        }
+
         internal static int GetUtf8(string s, byte* utf8Bytes, int utf8ByteCount)
         {
             fixed (char* utf16Ptr = s)

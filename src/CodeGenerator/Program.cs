@@ -105,15 +105,15 @@ namespace CodeGenerator
 
         static void Main(string[] args)
         {
-            string outputPath;
-            if (args.Length > 0)
-            {
-                outputPath = args[0];
-            }
-            else
-            {
-                outputPath = AppContext.BaseDirectory;
-            }
+            string outputPath = "W:\\ImGui.NET\\src\\ImGui.NET\\Generated\\";
+            // if (args.Length > 0)
+            // {
+            //     outputPath = args[0];
+            // }
+            // else
+            // {
+            //     outputPath = AppContext.BaseDirectory;
+            // }
             Console.WriteLine($"Outputting generated code files to {outputPath}.");
 
             JObject typesJson;
@@ -292,8 +292,12 @@ namespace CodeGenerator
                 using (CSharpCodeWriter writer = new CSharpCodeWriter(Path.Combine(outputPath, td.Name + ".gen.cs")))
                 {
                     writer.Using("System");
+                    writer.WriteLine("#if UNITY_EDITOR || UNITY_STANDALONE");
+                    writer.Using("UnityEngine");
+                    writer.WriteLine("#else");
                     writer.Using("System.Numerics");
-                    writer.Using("System.Runtime.CompilerServices");
+                    writer.WriteLine("#endif ");
+                    //writer.Using("System.Runtime.CompilerServices");
                     writer.Using("System.Text");
                     writer.WriteLine(string.Empty);
                     writer.PushBlock("namespace ImGuiNET");
@@ -326,12 +330,88 @@ namespace CodeGenerator
 
                     string ptrTypeName = td.Name + "Ptr";
                     writer.PushBlock($"public unsafe partial struct {ptrTypeName}");
+                    
                     writer.WriteLine($"public {td.Name}* NativePtr {{ get; }}");
-                    writer.WriteLine($"public {ptrTypeName}({td.Name}* nativePtr) => NativePtr = nativePtr;");
-                    writer.WriteLine($"public {ptrTypeName}(IntPtr nativePtr) => NativePtr = ({td.Name}*)nativePtr;");
-                    writer.WriteLine($"public static implicit operator {ptrTypeName}({td.Name}* nativePtr) => new {ptrTypeName}(nativePtr);");
-                    writer.WriteLine($"public static implicit operator {td.Name}* ({ptrTypeName} wrappedPtr) => wrappedPtr.NativePtr;");
-                    writer.WriteLine($"public static implicit operator {ptrTypeName}(IntPtr nativePtr) => new {ptrTypeName}(nativePtr);");
+                    writer.WriteLine($"");
+                    
+                    foreach (TypeReference field in td.Fields)
+                    {
+                        string typeStr = GetTypeString(field.Type, field.IsFunctionPointer);
+                        string rawType = typeStr;
+
+                        if (s_wellKnownFieldReplacements.TryGetValue(field.Type, out string wellKnownFieldType))
+                        {
+                            typeStr = wellKnownFieldType;
+                        }
+
+                        if (field.ArraySize != 0)
+                        {
+                            writer.WriteLine($"public RangeAccessor<{typeStr}> {field.Name};");
+                        }
+                        else
+                        {
+                            if (typeStr.Contains("*") && !typeStr.Contains("ImVector"))
+                            {
+                                if (GetWrappedType(typeStr, out string wrappedTypeName))
+                                {
+                                    //writer.WriteLine($"public {wrappedTypeName} {field.Name}() {{ return new {wrappedTypeName}(NativePtr->{field.Name}); }}");
+                                }
+                            }
+                        }
+                    }
+                    writer.WriteLine($"");
+
+                    writer.WriteLine($"public {ptrTypeName}({td.Name}* nativePtr)");
+                    writer.WriteLine($"{{");
+                    writer.WriteLine($"    NativePtr = nativePtr;");
+                    foreach (TypeReference field in td.Fields)
+                    {
+                        string typeStr = GetTypeString(field.Type, field.IsFunctionPointer);
+                        string rawType = typeStr;
+
+                        if (s_wellKnownFieldReplacements.TryGetValue(field.Type, out string wellKnownFieldType))
+                        {
+                            typeStr = wellKnownFieldType;
+                        }
+
+                        if (field.ArraySize != 0)
+                        {
+                            string addrTarget = s_legalFixedTypes.Contains(rawType)
+                                ? $"NativePtr->{field.Name}"
+                                : $"&NativePtr->{field.Name}_0";
+                            writer.WriteLine($"    {field.Name} = new RangeAccessor<{typeStr}>({addrTarget}, {field.ArraySize});");
+                        }
+                    }
+                    writer.WriteLine($"}}");
+                    writer.WriteLine($"");
+                    
+                    writer.WriteLine($"public {ptrTypeName}(IntPtr nativePtr)");
+                    writer.WriteLine($"{{");
+                    writer.WriteLine($"    NativePtr = ({td.Name}*)nativePtr;");
+                    foreach (TypeReference field in td.Fields)
+                    {
+                        string typeStr = GetTypeString(field.Type, field.IsFunctionPointer);
+                        string rawType = typeStr;
+
+                        if (s_wellKnownFieldReplacements.TryGetValue(field.Type, out string wellKnownFieldType))
+                        {
+                            typeStr = wellKnownFieldType;
+                        }
+
+                        if (field.ArraySize != 0)
+                        {
+                            string addrTarget = s_legalFixedTypes.Contains(rawType)
+                                ? $"NativePtr->{field.Name}"
+                                : $"&NativePtr->{field.Name}_0";
+                            writer.WriteLine($"    {field.Name} = new RangeAccessor<{typeStr}>({addrTarget}, {field.ArraySize});");
+                        }
+                    } 
+                    writer.WriteLine($"}}"); 
+                    writer.WriteLine($"");
+                    
+                    writer.WriteLine($"public static implicit operator {ptrTypeName}({td.Name}* nativePtr) {{ return new {ptrTypeName}(nativePtr); }}");
+                    writer.WriteLine($"public static implicit operator {td.Name}* ({ptrTypeName} wrappedPtr) {{ return wrappedPtr.NativePtr; }}");
+                    writer.WriteLine($"public static implicit operator {ptrTypeName}(IntPtr nativePtr) {{ return new {ptrTypeName}(nativePtr); }}");
 
                     foreach (TypeReference field in td.Fields)
                     {
@@ -345,8 +425,8 @@ namespace CodeGenerator
 
                         if (field.ArraySize != 0)
                         {
-                            string addrTarget = s_legalFixedTypes.Contains(rawType) ? $"NativePtr->{field.Name}" : $"&NativePtr->{field.Name}_0";
-                            writer.WriteLine($"public RangeAccessor<{typeStr}> {field.Name} => new RangeAccessor<{typeStr}>({addrTarget}, {field.ArraySize});");
+                            // string addrTarget = s_legalFixedTypes.Contains(rawType) ? $"NativePtr->{field.Name}" : $"&NativePtr->{field.Name}_0";
+                            // writer.WriteLine($"public RangeAccessor<{typeStr}> {field.Name} {{ get {{ return new RangeAccessor<{typeStr}>({addrTarget}, {field.ArraySize}); }} }}");
                         }
                         else if (typeStr.Contains("ImVector"))
                         {
@@ -359,7 +439,7 @@ namespace CodeGenerator
 
                             if (GetWrappedType(vectorElementType + "*", out string wrappedElementType))
                             {
-                                writer.WriteLine($"public ImPtrVector<{wrappedElementType}> {field.Name} => new ImPtrVector<{wrappedElementType}>(NativePtr->{field.Name}, Unsafe.SizeOf<{vectorElementType}>());");
+                                writer.WriteLine($"public ImPtrVector<{wrappedElementType}> {field.Name} {{ get {{ {{ return new ImPtrVector<{wrappedElementType}>(NativePtr->{field.Name}, Unsafe.SizeOf<{vectorElementType}>()); }} }} }}");
                             }
                             else
                             {
@@ -367,7 +447,7 @@ namespace CodeGenerator
                                 {
                                     vectorElementType = wrappedElementType;
                                 }
-                                writer.WriteLine($"public ImVector<{vectorElementType}> {field.Name} => new ImVector<{vectorElementType}>(NativePtr->{field.Name});");
+                                writer.WriteLine($"public ImVector<{vectorElementType}> {field.Name} {{ get {{ {{ return new ImVector<{vectorElementType}>(NativePtr->{field.Name}); }} }} }}");
                             }
                         }
                         else
@@ -376,20 +456,35 @@ namespace CodeGenerator
                             {
                                 if (GetWrappedType(typeStr, out string wrappedTypeName))
                                 {
-                                    writer.WriteLine($"public {wrappedTypeName} {field.Name} => new {wrappedTypeName}(NativePtr->{field.Name});");
+                                    writer.WriteLine($"public {wrappedTypeName} {field.Name} {{ get {{ {{ return new {wrappedTypeName}(NativePtr->{field.Name}); }} }} }}");
                                 }
                                 else if (typeStr == "byte*" && IsStringFieldName(field.Name))
                                 {
-                                    writer.WriteLine($"public NullTerminatedString {field.Name} => new NullTerminatedString(NativePtr->{field.Name});");
+                                    writer.WriteLine($"public NullTerminatedString {field.Name}() {{ return new NullTerminatedString(NativePtr->{field.Name}); }}");
                                 }
                                 else
                                 {
-                                    writer.WriteLine($"public IntPtr {field.Name} {{ get => (IntPtr)NativePtr->{field.Name}; set => NativePtr->{field.Name} = ({typeStr})value; }}");
+                                    writer.WriteLine($"public IntPtr {field.Name} {{ get {{ return (IntPtr)NativePtr->{field.Name}; }} set {{ NativePtr->{field.Name} = ({typeStr})value; }} }}");
                                 }
                             }
                             else
                             {
-                                writer.WriteLine($"public ref {typeStr} {field.Name} => ref Unsafe.AsRef<{typeStr}>(&NativePtr->{field.Name});");
+                                if (typeStr == "bool")
+                                {
+                                    writer.WriteLine($"public {typeStr} {field.Name}");
+                                    writer.WriteLine($"{{");
+                                    writer.WriteLine($"    set {{ NativePtr->{field.Name} = Convert.ToByte(value); }}");
+                                    writer.WriteLine($"    get {{ return Convert.ToBoolean(NativePtr->{field.Name}); }}");
+                                    writer.WriteLine($"}}");
+                                }
+                                else
+                                {
+                                    writer.WriteLine($"public {typeStr} {field.Name}");
+                                    writer.WriteLine($"{{");
+                                    writer.WriteLine($"    set {{ NativePtr->{field.Name} = ({typeStr})value; }}");
+                                    writer.WriteLine($"    get {{ return ({typeStr})NativePtr->{field.Name}; }}");
+                                    writer.WriteLine($"}}");
+                                }
                             }
                         }
                     }
@@ -456,7 +551,11 @@ namespace CodeGenerator
             using (CSharpCodeWriter writer = new CSharpCodeWriter(Path.Combine(outputPath, "ImGuiNative.gen.cs")))
             {
                 writer.Using("System");
+                writer.WriteLine("#if UNITY_EDITOR || UNITY_STANDALONE");
+                writer.Using("UnityEngine");
+                writer.WriteLine("#else");
                 writer.Using("System.Numerics");
+                writer.WriteLine("#endif ");
                 writer.Using("System.Runtime.InteropServices");
                 writer.WriteLine(string.Empty);
                 writer.PushBlock("namespace ImGuiNET");
@@ -496,7 +595,7 @@ namespace CodeGenerator
 
                         if (hasVaList) { continue; }
 
-                        string parameters = string.Join(", ", paramParts);
+                        string parameters = string.Join(", ", paramParts.ToArray());
 
                         bool isUdtVariant = exportedName.Contains("nonUDT");
                         string methodName = isUdtVariant
@@ -522,7 +621,11 @@ namespace CodeGenerator
             using (CSharpCodeWriter writer = new CSharpCodeWriter(Path.Combine(outputPath, "ImGui.gen.cs")))
             {
                 writer.Using("System");
+                writer.WriteLine("#if UNITY_EDITOR || UNITY_STANDALONE");
+                writer.Using("UnityEngine");
+                writer.WriteLine("#else");
                 writer.Using("System.Numerics");
+                writer.WriteLine("#endif ");
                 writer.Using("System.Runtime.InteropServices");
                 writer.Using("System.Text");
                 writer.WriteLine(string.Empty);

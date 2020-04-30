@@ -1,5 +1,9 @@
 ﻿using System;
+#if UNITY_EDITOR || UNITY_STANDALONE
+using UnityEngine;
+#else
 using System.Numerics;
+#endif
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -73,20 +77,29 @@ namespace ImGuiNET
         public static bool InputText(
             string label,
             ref string input,
-            uint maxLength) => InputText(label, ref input, maxLength, 0, null, IntPtr.Zero);
+            uint maxLength)
+        {
+            return InputText(label, ref input, maxLength, 0, null, IntPtr.Zero);
+        }
 
         public static bool InputText(
             string label,
             ref string input,
             uint maxLength,
-            ImGuiInputTextFlags flags) => InputText(label, ref input, maxLength, flags, null, IntPtr.Zero);
+            ImGuiInputTextFlags flags)
+        {
+            return InputText(label, ref input, maxLength, flags, null, IntPtr.Zero);
+        }
 
         public static bool InputText(
             string label,
             ref string input,
             uint maxLength,
             ImGuiInputTextFlags flags,
-            ImGuiInputTextCallback callback) => InputText(label, ref input, maxLength, flags, callback, IntPtr.Zero);
+            ImGuiInputTextCallback callback)
+        {
+            return InputText(label, ref input, maxLength, flags, callback, IntPtr.Zero);
+        }
 
         public static bool InputText(
             string label,
@@ -160,14 +173,20 @@ namespace ImGuiNET
             string label,
             ref string input,
             uint maxLength,
-            Vector2 size) => InputTextMultiline(label, ref input, maxLength, size, 0, null, IntPtr.Zero);
+            Vector2 size)
+        {
+            return InputTextMultiline(label, ref input, maxLength, size, 0, null, IntPtr.Zero);
+        }
 
         public static bool InputTextMultiline(
             string label,
             ref string input,
             uint maxLength,
             Vector2 size,
-            ImGuiInputTextFlags flags) => InputTextMultiline(label, ref input, maxLength, size, flags, null, IntPtr.Zero);
+            ImGuiInputTextFlags flags)
+        {
+            return InputTextMultiline(label, ref input, maxLength, size, flags, null, IntPtr.Zero);
+        }
 
         public static bool InputTextMultiline(
             string label,
@@ -175,7 +194,10 @@ namespace ImGuiNET
             uint maxLength,
             Vector2 size,
             ImGuiInputTextFlags flags,
-            ImGuiInputTextCallback callback) => InputTextMultiline(label, ref input, maxLength, size, flags, callback, IntPtr.Zero);
+            ImGuiInputTextCallback callback)
+        {
+            return InputTextMultiline(label, ref input, maxLength, size, flags, callback, IntPtr.Zero);
+        }
 
         public static bool InputTextMultiline(
             string label,

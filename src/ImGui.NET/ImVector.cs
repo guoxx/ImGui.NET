@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace ImGuiNET
 {
@@ -9,10 +10,10 @@ namespace ImGuiNET
         public readonly int Capacity;
         public readonly IntPtr Data;
 
-        public ref T Ref<T>(int index)
-        {
-            return ref Unsafe.AsRef<T>((byte*)Data + index * Unsafe.SizeOf<T>());
-        }
+        //public ref T Ref<T>(int index)
+        //{
+        //    return ref Unsafe.AsRef<T>((byte*)Data + index * Unsafe.SizeOf<T>());
+        //}
 
         public IntPtr Address<T>(int index)
         {
@@ -40,7 +41,15 @@ namespace ImGuiNET
             Data = data;
         }
 
-        public ref T this[int index] => ref Unsafe.AsRef<T>((byte*)Data + index * Unsafe.SizeOf<T>());
+        public T this[int index]
+        {
+            get
+            {
+                IntPtr ptr = (IntPtr)((byte*) Data + index * Unsafe.SizeOf<T>());
+                T var = (T)Marshal.PtrToStructure(ptr, typeof(T));
+                return var;
+            }
+        }
     }
 
     public unsafe struct ImPtrVector<T>
@@ -67,8 +76,8 @@ namespace ImGuiNET
             get
             {
                 byte* address = (byte*)Data + index * _stride;
-                T ret = Unsafe.Read<T>(&address);
-                return ret;
+                T var = (T)Marshal.PtrToStructure((IntPtr)(&address), typeof(T));
+                return var;
             }
         }
     }

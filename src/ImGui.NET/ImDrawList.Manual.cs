@@ -1,4 +1,8 @@
-﻿using System.Numerics;
+﻿#if UNITY_EDITOR || UNITY_STANDALONE
+using UnityEngine;
+#else
+using System.Numerics;
+#endif
 using System.Text;
 
 namespace ImGuiNET
